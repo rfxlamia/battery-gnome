@@ -169,4 +169,13 @@ describe('interruptibleSleep', () => {
     await p;
     expect(Date.now() - start).toBeLessThan(500);
   });
+
+  it('registers signal handler only once across multiple calls', async () => {
+    const initialListenerCount = process.listenerCount('SIGUSR2');
+    await interruptibleSleep(1);
+    await interruptibleSleep(1);
+    await interruptibleSleep(1);
+    // Handler should be registered only once, not 3 times
+    expect(process.listenerCount('SIGUSR2')).toBe(initialListenerCount);
+  });
 });

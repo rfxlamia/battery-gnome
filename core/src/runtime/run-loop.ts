@@ -16,8 +16,14 @@ function ensureSignalHandler(): void {
 export function interruptibleSleep(ms: number): Promise<void> {
   ensureSignalHandler();
   return new Promise((resolve) => {
-    const timer = setTimeout(() => { _wakeUp = null; resolve(); }, ms);
-    _wakeUp = () => { clearTimeout(timer); _wakeUp = null; resolve(); };
+    // Assign _wakeUp BEFORE creating timer to prevent race with SIGUSR2
+    let timer: ReturnType<typeof setTimeout>;
+    _wakeUp = () => {
+      clearTimeout(timer);
+      _wakeUp = null;
+      resolve();
+    };
+    timer = setTimeout(() => { _wakeUp = null; resolve(); }, ms);
   });
 }
 
