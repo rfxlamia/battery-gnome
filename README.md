@@ -58,19 +58,18 @@ cd battery-gnome
 
 ```bash
 cd core
-npm install
 ./install-local.sh
-systemctl --user enable --now battery-core.service
 ```
 
 ### 3. Install the GNOME extension
 
 ```bash
 cd ../extension
-npm install       # dev dependencies only (for tests)
 ./install-local.sh
 gnome-extensions enable battery@allthingsclaude.local
 ```
+
+> **Note:** `npm install` is only needed if you want to run tests. The extension itself is pure JavaScript and requires no dependencies to run.
 
 ### 4. Reload GNOME Shell
 
