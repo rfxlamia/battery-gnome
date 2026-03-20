@@ -18,3 +18,10 @@ export function getBatteryCoreLauncherPath(homeDir) {
 export function getBatteryCoreLoginCommand(homeDir) {
   return [getBatteryCoreLauncherPath(homeDir), 'login'];
 }
+
+/**
+ * @returns {string[]}
+ */
+export function getSignalCoreCommand() {
+  return ['systemctl', '--user', 'kill', '--kill-who=main', '-s', 'SIGUSR2', 'battery-core.service'];
+}
