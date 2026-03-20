@@ -50,6 +50,24 @@ describe('persistLoginResult', () => {
     expect(tokens.accessToken).toBe('access-2');
   });
 
+  it('creates Account 2 when selectedId exists on disk but points to a non-existent account', async () => {
+    const homeDir = await mkdtemp(join(tmpdir(), 'battery-login-persist-'));
+
+    // First login creates Account 1
+    await persistLoginResult(homeDir, { accessToken: 'a1', refreshToken: 'r1', expiresIn: 3600 });
+
+    // Overwrite selected-account-id with a stale/unknown UUID
+    const { writeFile } = await import('node:fs/promises');
+    await writeFile(join(homeDir, '.battery', 'selected-account-id'), 'non-existent-uuid-1234');
+
+    const second = await persistLoginResult(homeDir, { accessToken: 'a2', refreshToken: 'r2', expiresIn: 3600 });
+
+    const accounts = JSON.parse(await readFile(join(homeDir, '.battery', 'accounts.json'), 'utf8'));
+    expect(accounts).toHaveLength(2);
+    expect(accounts[1]).toMatchObject({ name: 'Account 2' });
+    expect(second.accountId).toBe(accounts[1].id);
+  });
+
   it('creates Account 2 when accounts exist but none is selected', async () => {
     const homeDir = await mkdtemp(join(tmpdir(), 'battery-login-persist-'));
 

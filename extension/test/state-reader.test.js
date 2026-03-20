@@ -82,6 +82,19 @@ describe('parseStateJson', () => {
     expect(parseStateJson(raw)).toBeNull();
   });
 
+  it('accepts weekly with null resetsAt', () => {
+    const raw = JSON.stringify({
+      version: 1,
+      status: 'ok',
+      updatedAt: '2026-03-17T00:00:00.000Z',
+      account: { id: 'a1', name: 'Alice', planTier: 'pro', isSelected: true },
+      session: { utilization: 0.42, resetsAt: '2026-03-17T01:18:00.000Z', isActive: true },
+      weekly: { utilization: 0.31, resetsAt: null },
+      freshness: { staleAfterSeconds: 300 },
+    });
+    expect(parseStateJson(raw)).toMatchObject({ status: 'ok' });
+  });
+
   it('returns null when account shape is invalid', () => {
     const raw = JSON.stringify({
       version: 1,
