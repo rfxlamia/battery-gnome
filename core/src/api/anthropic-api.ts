@@ -48,7 +48,6 @@ export async function fetchUsage(
       signal: controller.signal,
     });
   } catch (err) {
-    clearTimeout(timeout);
     throw makeApiError('network_error', `Network error fetching usage: ${String(err)}`);
   } finally {
     clearTimeout(timeout);

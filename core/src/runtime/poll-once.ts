@@ -12,8 +12,7 @@ import {
   buildLoginRequiredState,
   buildErrorState,
 } from './build-state.js';
-import type { TokenError } from '../api/api-errors.js';
-import type { ApiError } from '../api/api-errors.js';
+import type { TokenError, ApiError } from '../api/api-errors.js';
 
 export interface PollDeps {
   fetchImpl: typeof fetch;

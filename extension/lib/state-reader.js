@@ -74,13 +74,7 @@ function isUsageWindow(data) {
     data !== null &&
     typeof data.utilization === 'number' &&
     Number.isFinite(data.utilization) &&
-    typeof data.resetsAt === 'string'
-  ) || (
-    typeof data === 'object' &&
-    data !== null &&
-    typeof data.utilization === 'number' &&
-    Number.isFinite(data.utilization) &&
-    data.resetsAt === null
+    (typeof data.resetsAt === 'string' || data.resetsAt === null)
   );
 }
 

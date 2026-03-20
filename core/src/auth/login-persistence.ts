@@ -23,20 +23,14 @@ export async function persistLoginResult(
   let accountId: string;
   let accounts: StoredAccountRecord[];
 
-  if (existing.length > 0 && selectedId) {
-    // Re-auth: replace tokens for the currently selected account
-    const found = existing.find((a) => a.id === selectedId);
-    if (found) {
-      accountId = found.id;
-      accounts = existing;
-    } else {
-      // Selected ID doesn't match any account — create a new one
-      const newAccount = makeAccount(`Account ${existing.length + 1}`, false);
-      accountId = newAccount.id;
-      accounts = [...existing, newAccount];
-    }
-  } else if (existing.length > 0 && !selectedId) {
-    // Accounts exist but nothing is selected — create Account N+1
+  // Re-auth: try to match the selected account
+  const found = selectedId ? existing.find((a) => a.id === selectedId) : null;
+
+  if (found) {
+    accountId = found.id;
+    accounts = existing;
+  } else if (existing.length > 0) {
+    // Selected ID doesn't match or nothing is selected — create Account N+1
     const newAccount = makeAccount(`Account ${existing.length + 1}`, false);
     accountId = newAccount.id;
     accounts = [...existing, newAccount];
