@@ -1,2 +1,6 @@
+# build and install dir
 node_modules/
 core/dist/
+
+# never commit plans already done
+docs/plans/done/
