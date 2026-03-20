@@ -70,8 +70,7 @@ export function buildPopupRows(state, now = new Date()) {
   }
 
   if (status === 'error') {
-    const msg = state.error?.message ?? 'An error occurred';
-    return [{ message: `Error: ${msg}`, error: true }];
+    return [{ message: _friendlyErrorMessage(state.error), error: true }];
   }
 
   if (status === 'ok') {
@@ -135,4 +134,27 @@ export function buildPopupRows(state, now = new Date()) {
   }
 
   return [{ message: 'Battery: unknown state' }];
+}
+
+/**
+ * Maps a structured error object to a user-readable string.
+ * Never exposes the raw technical error.message.
+ *
+ * @param {{ kind: string, retryAfterSeconds?: number } | null | undefined} error
+ * @returns {string}
+ */
+function _friendlyErrorMessage(error) {
+  const kind = error?.kind;
+  if (kind === 'network_error') return 'Network unavailable — check your connection';
+  if (kind === 'server_error') return 'Anthropic servers unavailable';
+  if (kind === 'unauthorized') return 'Authentication failed — try signing in again';
+  if (kind === 'decoding_error') return 'Unexpected response from server';
+  if (kind === 'rate_limited') {
+    const secs = error?.retryAfterSeconds;
+    if (typeof secs === 'number') {
+      return `Too many requests — retrying in ${Math.ceil(secs / 60)} min`;
+    }
+    return 'Too many requests — try again later';
+  }
+  return 'An unexpected error occurred';
 }

@@ -42,14 +42,66 @@ describe('buildPopupRows', () => {
     expect(rows.some((r) => r.message?.toLowerCase().includes('sign in'))).toBe(true);
   });
 
-  it('returns error message for error state', () => {
-    const rows = buildPopupRows({
+describe('buildPopupRows — error kind mapping', () => {
+  function errorState(kind, extra = {}) {
+    return {
       status: 'error',
-      error: { kind: 'rate_limited', message: 'Too many requests' },
+      error: { kind, message: 'raw technical message', ...extra },
       freshness: { staleAfterSeconds: 300 },
-    });
-    expect(rows.some((r) => r.message?.toLowerCase().includes('error'))).toBe(true);
+    };
+  }
+
+  it('maps network_error to friendly message', () => {
+    const rows = buildPopupRows(errorState('network_error'));
+    expect(rows[0].message).toBe('Network unavailable — check your connection');
+    expect(rows[0].error).toBe(true);
   });
+
+  it('maps server_error to friendly message', () => {
+    const rows = buildPopupRows(errorState('server_error'));
+    expect(rows[0].message).toBe('Anthropic servers unavailable');
+  });
+
+  it('maps unauthorized to friendly message', () => {
+    const rows = buildPopupRows(errorState('unauthorized'));
+    expect(rows[0].message).toBe('Authentication failed — try signing in again');
+  });
+
+  it('maps decoding_error to friendly message', () => {
+    const rows = buildPopupRows(errorState('decoding_error'));
+    expect(rows[0].message).toBe('Unexpected response from server');
+  });
+
+  it('maps rate_limited without retryAfterSeconds to fallback message', () => {
+    const rows = buildPopupRows(errorState('rate_limited'));
+    expect(rows[0].message).toBe('Too many requests — try again later');
+  });
+
+  it('maps rate_limited with retryAfterSeconds to countdown message (rounded up)', () => {
+    const rows = buildPopupRows(errorState('rate_limited', { retryAfterSeconds: 90 }));
+    expect(rows[0].message).toBe('Too many requests — retrying in 2 min');
+  });
+
+  it('maps rate_limited with exactly 60s to "1 min"', () => {
+    const rows = buildPopupRows(errorState('rate_limited', { retryAfterSeconds: 60 }));
+    expect(rows[0].message).toBe('Too many requests — retrying in 1 min');
+  });
+
+  it('maps rate_limited with 30s (rounds up) to "1 min"', () => {
+    const rows = buildPopupRows(errorState('rate_limited', { retryAfterSeconds: 30 }));
+    expect(rows[0].message).toBe('Too many requests — retrying in 1 min');
+  });
+
+  it('maps unknown kind to fallback message', () => {
+    const rows = buildPopupRows(errorState('something_new'));
+    expect(rows[0].message).toBe('An unexpected error occurred');
+  });
+
+  it('does not prepend "Error:" prefix', () => {
+    const rows = buildPopupRows(errorState('network_error'));
+    expect(rows[0].message).not.toMatch(/^Error:/);
+  });
+});
 
   it('returns stale notice when state is stale', () => {
     const staleState = {
