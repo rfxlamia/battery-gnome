@@ -59,7 +59,7 @@ cd battery-gnome
 ```bash
 cd core
 npm install
-bash install-local.sh
+./install-local.sh
 systemctl --user enable --now battery-core.service
 ```
 
@@ -68,7 +68,7 @@ systemctl --user enable --now battery-core.service
 ```bash
 cd ../extension
 npm install       # dev dependencies only (for tests)
-bash install-local.sh
+./install-local.sh
 gnome-extensions enable battery@allthingsclaude.local
 ```
 
