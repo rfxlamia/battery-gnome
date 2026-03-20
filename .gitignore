@@ -2,5 +2,6 @@
 node_modules/
 core/dist/
 
-# never commit plans already done
-docs/plans/done/
+# never commit plans
+docs/plans/
+docs/superpowers/

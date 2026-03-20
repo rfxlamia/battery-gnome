@@ -25,6 +25,10 @@ Clicking the indicator opens a popup with:
 - Account and plan info
 - Last updated time
 
+## Screenshots
+
+![ss](images/ss.png)
+
 ## Requirements
 
 - GNOME Shell 46, 47, or 48
