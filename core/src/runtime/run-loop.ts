@@ -3,6 +3,24 @@ import { pollOnceWithMeta } from './poll-once.js';
 import type { BatteryState } from '../contracts/index.js';
 import type { PollOutcome } from './poll-once.js';
 
+// Interruptible sleep — wakes early when SIGUSR2 is received (e.g. from extension "Reload")
+let _wakeUp: (() => void) | null = null;
+let _signalHandlerRegistered = false;
+
+function ensureSignalHandler(): void {
+  if (_signalHandlerRegistered) return;
+  process.on('SIGUSR2', () => { _wakeUp?.(); });
+  _signalHandlerRegistered = true;
+}
+
+export function interruptibleSleep(ms: number): Promise<void> {
+  ensureSignalHandler();
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => { _wakeUp = null; resolve(); }, ms);
+    _wakeUp = () => { clearTimeout(timer); _wakeUp = null; resolve(); };
+  });
+}
+
 const POLL_INTERVAL_ACTIVE_MS = 60_000;
 const POLL_INTERVAL_IDLE_MS = 300_000;
 
@@ -116,16 +134,13 @@ export async function runLoopStep(
  * Polls on an interval that adapts to session activity.
  */
 export async function runLoop(homeDir: string): Promise<never> {
+  ensureSignalHandler();
   let loopState = createInitialRunLoopState();
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   while (true) {
     const step = await runLoopStep(loopState, { fetchImpl: fetch, now: Date.now(), homeDir });
     loopState = step.loopState;
-    await sleep(step.sleepMs);
+    await interruptibleSleep(step.sleepMs);
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }

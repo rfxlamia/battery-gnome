@@ -8,6 +8,7 @@ import {
   getNextPollingInterval,
   getPollingIntervalMs,
   getServiceCommand,
+  interruptibleSleep,
   runLoopStep,
   runLoopTick,
 } from '../../src/runtime/run-loop.js';
@@ -149,5 +150,23 @@ describe('runLoopTick', () => {
       homeDir: emptyDir,
     });
     expect(result).toMatchObject({ wroteState: true, status: 'login_required' });
+  });
+});
+
+describe('interruptibleSleep', () => {
+  it('resolves naturally after the specified duration', async () => {
+    const start = Date.now();
+    await interruptibleSleep(50);
+    expect(Date.now() - start).toBeGreaterThanOrEqual(40);
+  });
+
+  it('resolves early when SIGUSR2 is emitted', async () => {
+    const start = Date.now();
+    const p = interruptibleSleep(10_000);
+    // Give the Promise a microtask tick to register _wakeUp
+    await Promise.resolve();
+    process.emit('SIGUSR2');
+    await p;
+    expect(Date.now() - start).toBeLessThan(500);
   });
 });
