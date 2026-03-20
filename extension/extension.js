@@ -18,7 +18,8 @@ import { getIndicatorLabel } from './lib/status-model.js';
 import { parseStateJson } from './lib/state-reader.js';
 import { buildPopupRows, utilizationColorLevel } from './lib/popup-view.js';
 import { getLocalStateStatusForReadFailure } from './lib/read-error-status.js';
-import { getBatteryCoreLoginCommand } from './lib/core-launcher.js';
+import { getBatteryCoreLoginCommand, getSignalCoreCommand } from './lib/core-launcher.js';
+import { createReloadController } from './lib/reload-controller.js';
 
 const REFRESH_INTERVAL_SECONDS = 30;
 
@@ -41,6 +42,25 @@ const BatteryIndicator = GObject.registerClass(class BatteryIndicator extends Pa
     this._extension = extension;
     this._stateFile = GLib.get_home_dir() + '/.battery/state.json';
     this._lastState = null;
+    this._isRefreshing = false;
+    this._reloadController = createReloadController({
+      signalCore: () => this._signalCoreForReload(),
+      scheduleDelay: (seconds, callback) => GLib.timeout_add_seconds(
+        GLib.PRIORITY_DEFAULT,
+        seconds,
+        () => {
+          callback();
+          return GLib.SOURCE_REMOVE;
+        },
+      ),
+      cancelDelay: (id) => GLib.source_remove(id),
+      refreshNow: () => this._refresh(),
+      onRefreshingChange: (refreshing) => {
+        this._isRefreshing = refreshing;
+        this._renderMenu();
+      },
+      logError: (error) => console.error('Battery: failed to signal core daemon:', error),
+    });
 
     // Mini progress bar icon (matching Swift's MenuBarIconView progress bar)
     this._progressIcon = new St.DrawingArea({
@@ -83,26 +103,64 @@ const BatteryIndicator = GObject.registerClass(class BatteryIndicator extends Pa
   }
 
   _refresh() {
+    if (this._isRefreshing) return;
     const state = this._readState();
     this._lastState = state;
     this._progressIcon.queue_repaint();
     this._label.set_text(getIndicatorLabel(state));
+    this._renderMenu();
+  }
+
+  _renderMenu() {
     this.menu.removeAll();
-    _buildPopupContent(this.menu, state);
-    if (state?.status === 'login_required') {
+    _buildPopupContent(this.menu, this._lastState);
+
+    if (this._lastState?.status === 'login_required') {
       this.menu.addAction('Sign in', () => {
         try {
           const cmd = getBatteryCoreLoginCommand(GLib.get_home_dir());
           const proc = Gio.Subprocess.new(cmd, Gio.SubprocessFlags.NONE);
           proc.init(null);
-          // Login is async — the 30-second poll timer will pick up ok state
-          // when the browser OAuth flow completes.
         } catch (err) {
           console.error('Battery: failed to launch login command:', err);
         }
       });
     }
-    this.menu.addAction('Reload state', () => this._refresh());
+
+    if (this._isRefreshing) {
+      const refreshingItem = new PopupMenu.PopupMenuItem('Refreshing…');
+      refreshingItem.sensitive = false;
+      this.menu.addMenuItem(refreshingItem);
+      return;
+    }
+
+    this.menu.addAction('Reload state', () => {
+      void this._triggerReload();
+    });
+  }
+
+  async _triggerReload() {
+    await this._reloadController.trigger();
+  }
+
+  _signalCoreForReload() {
+    return new Promise((resolve, reject) => {
+      try {
+        const cmd = getSignalCoreCommand();
+        const proc = Gio.Subprocess.new(cmd, Gio.SubprocessFlags.NONE);
+        proc.init(null);
+        proc.wait_check_async(null, (source, result) => {
+          try {
+            source.wait_check_finish(result);
+            resolve();
+          } catch (err) {
+            reject(err);
+          }
+        });
+      } catch (err) {
+        reject(err);
+      }
+    });
   }
 
   /**
@@ -162,6 +220,8 @@ const BatteryIndicator = GObject.registerClass(class BatteryIndicator extends Pa
   }
 
   destroy() {
+    this._reloadController?.dispose();
+    this._reloadController = null;
     if (this._timerId) {
       GLib.source_remove(this._timerId);
       this._timerId = null;
